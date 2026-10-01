@@ -23,7 +23,7 @@ using namespace vex;
 #define LIGHT_PERCENT
 bool renderMap = true;
 bool songs = true;
-bool colourDebug = false;
+bool colourDebug = true;
 bool mapOutline = false;
 bool printRobotPos = false;
 bool wallSquare = true;
@@ -130,7 +130,8 @@ typedef enum{
     STATE_GATHER_INFO,
     STATE_DECIDE,
     STATE_MOVE,
-    STATE_ERROR
+    STATE_ERROR,
+    STATE_COLOUR_SET
 }state;
 
 typedef enum{
@@ -156,7 +157,7 @@ typedef enum{
 }dir;
 
 
-state gState = STATE_STARTUP;
+state gState = STATE_COLOUR_SET;
 cell maze[MAZE_WIDTH][MAZE_HEIGHT];
 
 void onPress() {
@@ -791,6 +792,9 @@ void error(){
 // Run one state-machine step.
 void stateMachine(){
     switch (gState){
+            case STATE_COLOUR_SET:
+            colourSet();
+            break;
             case STATE_STARTUP:
             startup();
             break;
@@ -857,13 +861,8 @@ switch((int)cTile){
 }
 
 
-    int main(){
-    opSens.setLightPower(50, vex::percentUnits::pct);
-
-    while(WAIT_TIME){
-        if(colourDebug){
-            
-            while(1){
+int main(){
+    while(colourDebug){
                 tile temp = tileCheck();
                 tileToPrint(temp);
                 Brain.Screen.newLine();
@@ -872,10 +871,21 @@ switch((int)cTile){
                 printHue();
                 wait(500, msec);
                 Brain.Screen.clearScreen();
-                Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-
-            }
+                Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);   
         }
+        
+    while(1){
+        opSens.setLightPower(50, vex::percentUnits::pct);
+        if(colourDebug){
+            Brain.Screen.print("1");
+            wait(600,msec);
+        }
+        if(!colourDebug){
+            Brain.Screen.print("0");
+            wait(600,msec);
+        }
+
+        
         if(!renderMap){
         Brain.Screen.clearScreen();
         Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
