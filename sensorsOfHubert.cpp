@@ -3,6 +3,7 @@
 vex::brain       Brain;
 vex::distance dSens = vex::distance(vex::PORT5);
 vex::optical opSens = vex::optical(vex::PORT1);
+vex::touchled tLed = vex::touchled(vex::PORT10);
 
 
 double rding; // the reading
@@ -19,49 +20,139 @@ double dAverage = 0;
 double dTotal = 0;
 double cDistance = 0;
 tile currentTile;
+double blackBrtns;
+double redCol;
+double orangeCol;
+double whiteCol;
+double greenCol;
+double blueCol;
+bool doColourCheck = true;
 
+void colourSet(){
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on Black");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    blackBrtns = oBrtnsAverage;
 
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on Red");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    redCol = oHueShortForHueAverage;
+
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on Orange");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    orangeCol = oHueShortForHueAverage;
+
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on Blue");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    blueCol = oHueShortForHueAverage;
+
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on Green");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    greenCol = oHueShortForHueAverage;
+
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+    Brain.Screen.print("Place me on White");
+    wait(250, vex::msec);
+    while(!tLed.pressing()){
+        wait(50, vex::msec);
+    }
+    whiteCol = oHueShortForHueAverage;
+    Brain.Screen.clearScreen();
+    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
+}
 
 tile tileCheck(){
-
     double oBrtnsTotal = 0;
     oBrtnsAverage = 0;
     double oHueShortForHueTotal = 0;
     oHueShortForHueAverage = 0;
     tile color = tile_black;
     for(int i = 0; i < BUFFER_SIZE; i++){
-            hueShortForHueRding[i] = opSens.hue();
-            oHueShortForHueTotal += hueShortForHueRding[i];
+        hueShortForHueRding[i] = opSens.hue();
+        oHueShortForHueTotal += hueShortForHueRding[i];
 
-            brtnsRding[i] = opSens.brightness();
-            oBrtnsTotal += brtnsRding[i];
+        brtnsRding[i] = opSens.brightness();
+        oBrtnsTotal += brtnsRding[i];
 
-        }
+    }
     oBrtnsAverage = oBrtnsTotal / BUFFER_SIZE;
     oHueShortForHueAverage =  oHueShortForHueTotal / BUFFER_SIZE;
-    if(oBrtnsAverage < 10){
-        color = tile_black;
-    } else {
-        if(oHueShortForHueAverage < UPPER_RED){
-            color = tile_red;
+
+    if(doColourCheck){
+        if(oBrtnsAverage < blackBrtns+5){
+            color = tile_black;
         } else {
-            if(oHueShortForHueAverage < UPPER_ORANGE){
-                color = tile_orange;
+            if(redCol-5 < oHueShortForHueAverage < redCol+5){
+                color = tile_red;
             } else {
-                if(oHueShortForHueAverage < UPPER_WHITE){
-                    color = tile_white;
+                if(orangeCol-5 < oHueShortForHueAverage < orangeCol+5){
+                   color = tile_orange;
                 } else {
-                    if(oHueShortForHueAverage < UPPER_BLUE){
-                        color = tile_blue;
+                    if(whiteCol-5 < oHueShortForHueAverage < whiteCol+5){
+                        color = tile_white;
                     } else {
-                        if(oHueShortForHueAverage < UPPER_GREEN){
-                            color = tile_green;
-                        } else { color = tile_red;}
+                        if(blueCol-5 < oHueShortForHueAverage < blueCol+5){
+                            color = tile_blue;
+                        } else {
+                            if(greenCol-5 < oHueShortForHueAverage < greenCol+5){
+                                color = tile_green;
+                            } else { color = tile_red;}
+                        }
                     }
                 }
-             }
-         }
-}
+            }
+        }
+    } else {
+        if(oBrtnsAverage < 7){
+            color = tile_black;
+        } else {
+            if(oHueShortForHueAverage < UPPER_RED){
+                color = tile_red;
+            } else {
+                if(oHueShortForHueAverage < UPPER_ORANGE){
+                    color = tile_orange;
+                } else {
+                    if(oHueShortForHueAverage < UPPER_WHITE){
+                        color = tile_white;
+                    } else {
+                        if(oHueShortForHueAverage < UPPER_BLUE){
+                            color = tile_blue;
+                        } else {
+                            if(oHueShortForHueAverage < UPPER_GREEN){
+                                color = tile_green;
+                            } else { color = tile_red;}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     return(color);
 }
 
