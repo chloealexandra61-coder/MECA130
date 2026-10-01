@@ -17,6 +17,9 @@ typedef enum{
     tile_error,
 }tile;
 
+
+void printBrightness();
+void printHue();
 void colourCheck();
 void wallCheckLong();
 void wallCheck();
@@ -27,11 +30,14 @@ tile tileCheck();
 #define BUFFER_SIZE 10 
 #define WALL_CLEAR_MM 400
 #define WALL_CLEAR_LONG 800
-#define UPPER_RED 24
-#define UPPER_ORANGE 47
-#define UPPER_WHITE 64
-#define UPPER_GREEN 75
-#define UPPER_BLUE 100
+#define UPPER_RED 20
+#define UPPER_PINK 30       //these were find from experimenting
+#define UPPER_ORANGE 35
+#define UPPER_WHITE 38
+#define UPPER_YELLOW 43
+#define UPPER_BLUE 47
+#define UPPER_GREEN 60
+
 
 extern double rding; // the reading
 extern double hueShortForHue; // hue is short for hue

@@ -4,6 +4,7 @@ vex::brain       Brain;
 vex::distance dSens = vex::distance(vex::PORT5);
 vex::optical opSens = vex::optical(vex::PORT1);
 
+
 double rding; // the reading
 double hueShortForHue; // hue is short for hue
 double brtns; //brightness
@@ -16,14 +17,13 @@ double hueShortForHueRding[BUFFER_SIZE];
 double brtnsRding[BUFFER_SIZE];
 double dAverage = 0;
 double dTotal = 0;
-double cDistance = 800;
+double cDistance = 0;
 tile currentTile;
-bool renderMap = false;
-int testColour = 0;
+
 
 
 tile tileCheck(){
-    testColour = 0;
+
     double oBrtnsTotal = 0;
     oBrtnsAverage = 0;
     double oHueShortForHueTotal = 0;
@@ -39,29 +39,23 @@ tile tileCheck(){
         }
     oBrtnsAverage = oBrtnsTotal / BUFFER_SIZE;
     oHueShortForHueAverage =  oHueShortForHueTotal / BUFFER_SIZE;
-    if(oBrtnsAverage < 0.1){
+    if(oBrtnsAverage < 10){
         color = tile_black;
-        testColour = 0;
     } else {
         if(oHueShortForHueAverage < UPPER_RED){
             color = tile_red;
-            testColour = 1;
         } else {
             if(oHueShortForHueAverage < UPPER_ORANGE){
                 color = tile_orange;
-                testColour = 2;
             } else {
                 if(oHueShortForHueAverage < UPPER_WHITE){
                     color = tile_white;
-                    testColour = 3;
                 } else {
-                    if(oHueShortForHueAverage < UPPER_GREEN){
-                        color = tile_green;
-                        testColour = 4;
+                    if(oHueShortForHueAverage < UPPER_BLUE){
+                        color = tile_blue;
                     } else {
-                        if(oHueShortForHueAverage < UPPER_BLUE){
-                            color = tile_blue;
-                            testColour = 5;
+                        if(oHueShortForHueAverage < UPPER_GREEN){
+                            color = tile_green;
                         } else { color = tile_red;}
                     }
                 }
@@ -72,9 +66,9 @@ tile tileCheck(){
 }
 
 void colourCheck(){
-    //if(!renderMap){
+    if(!renderMap){
     Brain.Screen.print("clr Check");
-    //    }
+       }
     currentTile = tileCheck();
  }
 
@@ -110,4 +104,12 @@ void wallCheck(){
             isWall = 1;
         } 
     
+}
+
+void printBrightness(){
+    Brain.Screen.print(", %.1f", oBrtnsAverage);
+}
+
+void printHue(){
+    Brain.Screen.print("%.1f", oHueShortForHueAverage);
 }
