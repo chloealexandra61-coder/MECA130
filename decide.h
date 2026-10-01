@@ -1,257 +1,234 @@
-#ifndef DECIDE_H
-#define DECIDE_H
+#ifndef DRIVETO_H
+#define DRIVETO_H
+#ifndef CELL_SIZE
+#define CELL_SIZE 400 // millimetres per maze cell (cardinal move distance)
+#endif
+#ifndef MOVE_COST
+#define MOVE_COST 10  // routing cost of driving one cardinal cell
+#endif
+#ifndef TURN_COST
+#define TURN_COST 2   // routing cost of turning 90 degrees (turn() is slow: two-stage + wall squaring)
+#endif
+#ifndef NUM_STATES
+#define NUM_STATES (MAZE_WIDTH * MAZE_HEIGHT * 8) // (x, y, facing) - 8 facings, 45 degrees apart
+#endif
+#ifndef INF_COST
+#define INF_COST 999999
+#endif
+#ifndef STATE_INDEX
+#define STATE_INDEX(x, y, d) ((((x) * MAZE_HEIGHT) + (y)) * 8 + (d))
+#endif
 
-// Flood fill (BFS) outward from the current cell through known, visited,
-// non-red, wall-free cells. Finds the nearest cell that unexploredTiles()
-// says has unexplored neighbours. Writes its coordinates to targetX/targetY
-// and returns true, or returns false if there is no such cell.
-bool floodFillTarget(int &targetX, int &targetY){
-    bool seen[MAZE_WIDTH][MAZE_HEIGHT];
-    int  queueX[MAZE_WIDTH * MAZE_HEIGHT];
-    int  queueY[MAZE_WIDTH * MAZE_HEIGHT];
-    int  head = 0, tail = 0;
+// A diagonal cell is sqrt(2) times further than a cardinal one, and only needs
+// a 45 degree turn instead of 90, so these are derived from your existing
+// MOVE_COST / TURN_COST rather than being separate numbers to tune.
+#define DIAGONAL_MOVE_COST ((int)(MOVE_COST * 1.41421356 + 0.5))
+#define DIAGONAL_TURN_COST ((TURN_COST + 1) / 2)
+#define DIAGONAL_CELL_SIZE ((int)(CELL_SIZE * 1.41421356 + 0.5))
 
-    for(int x = 0; x < MAZE_WIDTH; x++){
-        for(int y = 0; y < MAZE_HEIGHT; y++){
-            seen[x][y] = false;
-        }
-    }
+// 8 compass directions, 45 degrees apart, matching heading = d * 45.
+// Even d (0,2,4,6) are cardinal - N, E, S, W, same meaning as before.
+// Odd d (1,3,5,7) are diagonal - NE, SE, SW, NW.
+int dirStep[8][2] = {
+    {0, 1},   // 0  N
+    {1, 1},   // 1  NE
+    {1, 0},   // 2  E
+    {1, -1},  // 3  SE
+    {0, -1},  // 4  S
+    {-1, -1}, // 5  SW
+    {-1, 0},  // 6  W
+    {-1, 1}   // 7  NW
+};
 
-    seen[currentX][currentY] = true;
-    queueX[tail] = currentX;
-    queueY[tail] = currentY;
-    tail++;
-
-    while(head < tail){
-        int x = queueX[head];
-        int y = queueY[head];
-        head++;
-
-        // Found a frontier cell (skip the cell we're standing on).
-        if(!(x == currentX && y == currentY) &&
-           unexploredTiles(x - currentX, y - currentY) > 0){
-            targetX = x;
-            targetY = y;
-            return true;
-        }
-
-        for(int d = 0; d < 4; d++){
-            int nx = x + dirStep[d][0];
-            int ny = y + dirStep[d][1];
-
-            if(!validCell(nx, ny) || seen[nx][ny])
-                continue;
-
-            // Only travel through known cells (allowUnvisited = false).
-            if(!canStep(x, y, d, false, -1, -1))
-                continue;
-
-            seen[nx][ny] = true;
-            queueX[tail] = nx;
-            queueY[tail] = ny;
-            tail++;
-        }
-    }
-
-    return false;
+// calls the function to check if there is a wall at the appropriate coordinate.
+// only defined for cardinal d (0,2,4,6) - canStepDiagonal checks the two
+// cardinal walls either side of a corner instead of calling this with a
+// diagonal d.
+wall wallOnSide(int x, int y, int d){
+    if(d == 0) return maze[x][y].north;
+    if(d == 2) return maze[x][y].east;
+    if(d == 4) return maze[x][y].south;
+    return maze[x][y].west; // d == 6
 }
 
-// Choose the next cell using the information gathered so far.
-void decide(){
-    tLed.on(blue);
+// this function checks if it is possible to go from the current position to
+// the appropriate square. unvisited cells only work if the bool is set.
+bool canStep(int x, int y, int d, bool allowUnvisited, int targetX, int targetY){
+    int nx = x + dirStep[d][0];
+    int ny = y + dirStep[d][1];
 
-    if(!renderMap){
-        Brain.Screen.print("think");
+    if(!validCell(nx, ny))
+        return false;
+    if(wallOnSide(x, y, d) != absent)                 // wall present or still unknown
+        return false;
+    if(wallOnSide(nx, ny, (d + 4) % 8) == present)    // opposite side, 180 degrees away, disagrees
+        return false;
+    if(maze[nx][ny].tileType == tile_red)             // never drive onto a red tile
+        return false;
+    if(!allowUnvisited && maze[nx][ny].visited == 0 &&
+       !(nx == targetX && ny == targetY))             // colour unknown: could be red
+        return false;
+    return true;
+}
+
+// Can the robot cut the corner from (x, y) straight onto the diagonal cell at
+// d? Only allowed when BOTH right-angle routes around the corner are open
+// (for NE: north-then-east AND east-then-north) - if either route has a known
+// wall, there's something sitting in the corner and cutting it would clip it.
+bool canStepDiagonal(int x, int y, int d, bool allowUnvisited, int targetX, int targetY){
+    int nx = x + dirStep[d][0];
+    int ny = y + dirStep[d][1];
+
+    if(!validCell(nx, ny))
+        return false;
+
+    int compA = (d + 7) % 8; // cardinal side just one step back from d
+    int compB = (d + 1) % 8; // cardinal side just one step forward from d
+
+    int midAx = x + dirStep[compA][0], midAy = y + dirStep[compA][1];
+    int midBx = x + dirStep[compB][0], midBy = y + dirStep[compB][1];
+
+    bool routeA = wallOnSide(x, y, compA) == absent &&
+                  validCell(midAx, midAy) &&
+                  wallOnSide(midAx, midAy, compB) == absent;
+
+    bool routeB = wallOnSide(x, y, compB) == absent &&
+                  validCell(midBx, midBy) &&
+                  wallOnSide(midBx, midBy, compA) == absent;
+
+    if(!routeA || !routeB)
+        return false;
+
+    if(maze[nx][ny].tileType == tile_red)
+        return false;
+    if(!allowUnvisited && maze[nx][ny].visited == 0 &&
+       !(nx == targetX && ny == targetY))
+        return false;
+    return true;
+}
+
+// allowUnvisited set to false means that it will never go to an unvisited
+// tile and essentially back track through known stuff.
+// allowUnvisited set to true will allow the bot to go to unvisited tiles that
+// may be faster.
+bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
+    if(!validCell(targetX, targetY))
+        return false;
+    if(maze[targetX][targetY].tileType == tile_red)
+        return false;
+    if(targetX == currentX && targetY == currentY)
+        return true;
+
+    int cost[NUM_STATES];
+    int prevState[NUM_STATES];
+    bool settled[NUM_STATES];
+    for(int i = 0; i < NUM_STATES; i++){
+        cost[i] = INF_COST;
+        prevState[i] = -1;
+        settled[i] = false;
     }
 
-    // Red tiles are hazards. Reverse the direction we entered from.
-    if(maze[currentX][currentY].tileType == tile_red){
-        if(heading == 0){
-            heading = 180;
-            if(validCell(currentX, currentY - 1))
-                currentY--;
-        } else if(heading == 90){
-            heading = 270;
-            if(validCell(currentX - 1, currentY))
-                currentX--;
-        } else if(heading == 180){
-            heading = 0;
-            if(validCell(currentX, currentY + 1))
-                currentY++;
-        } else if(heading == 270){
-            heading = 90;
-            if(validCell(currentX + 1, currentY))
-                currentX++;
+    // Start from the way the robot is physically facing right now, rounded to
+    // the nearest 45 degrees.
+    int startDir = (((int)((heading + 22.5) / 45)) % 8 + 8) % 8;
+    cost[STATE_INDEX(currentX, currentY, startDir)] = 0;
+
+    int goalState = -1;
+
+    while(true){
+        // Pick the cheapest unsettled state.
+        int best = -1;
+        int bestCost = INF_COST;
+        for(int s = 0; s < NUM_STATES; s++){
+            if(!settled[s] && cost[s] < bestCost){
+                bestCost = cost[s];
+                best = s;
+            }
         }
-    } else {
+        if(best == -1)
+            break; // nothing reachable is left
 
-        // Once all required people have been found and a checkpoint exists,
-        // return to the checkpoint and then return to the start.
-        if(person >= REQUIRED_PEOPLE && checkpoint){
-            driveTo(checkpointX, checkpointY);
-            wait(1000, msec);
-            driveTo(0,0);
-            gState = STATE_IDLE;
-            return;
+        settled[best] = true;
+
+        int d = best % 8;
+        int y = (best / 8) % MAZE_HEIGHT;
+        int x = best / (8 * MAZE_HEIGHT);
+
+        if(x == targetX && y == targetY){
+            goalState = best;
+            break;
         }
 
-        // 1. Prefer an immediately adjacent unvisited tile.
-        if(maze[currentX][currentY].north == absent &&
-           visitedAt(currentX, currentY + 1) == 0){
+        // Turn 45 degrees either way (any bigger turn is just several of these).
+        for(int t = 1; t <= 7; t += 6){ // t = 1 or 7 (i.e. +1 or -1 mod 8)
+            int nd = (d + t) % 8;
+            int ns = STATE_INDEX(x, y, nd);
+            if(!settled[ns] && bestCost + DIAGONAL_TURN_COST < cost[ns]){
+                cost[ns] = bestCost + DIAGONAL_TURN_COST;
+                prevState[ns] = best;
+            }
+        }
 
-            heading = 0;
-            currentY++;
-
-        } else if(maze[currentX][currentY].east == absent &&
-                  visitedAt(currentX + 1, currentY) == 0){
-
-            heading = 90;
-            currentX++;
-
-        } else if(maze[currentX][currentY].south == absent &&
-                  visitedAt(currentX, currentY - 1) == 0){
-
-            heading = 180;
-            currentY--;
-
-        } else if(maze[currentX][currentY].west == absent &&
-                  visitedAt(currentX - 1, currentY) == 0){
-
-            heading = 270;
-            currentX--;
-
+        // Drive forward one cell: cardinal or diagonal depending on facing.
+        if(d % 2 == 0){
+            if(canStep(x, y, d, allowUnvisited, targetX, targetY)){
+                int ns = STATE_INDEX(x + dirStep[d][0], y + dirStep[d][1], d);
+                if(!settled[ns] && bestCost + MOVE_COST < cost[ns]){
+                    cost[ns] = bestCost + MOVE_COST;
+                    prevState[ns] = best;
+                }
+            }
         } else {
-
-            // 2. No unvisited adjacent tile. Pick the open neighbour that
-            //    has the most unexplored tiles around it.
-            int greatest = 0;
-            int bestDirection = -1;
-
-            int northAdj = 0;
-            int eastAdj  = 0;
-            int southAdj = 0;
-            int westAdj  = 0;
-
-            if(maze[currentX][currentY].north == absent)
-                northAdj = unexploredTiles(0, 1);
-
-            if(maze[currentX][currentY].east == absent)
-                eastAdj = unexploredTiles(1, 0);
-
-            if(maze[currentX][currentY].south == absent)
-                southAdj = unexploredTiles(0, -1);
-
-            if(maze[currentX][currentY].west == absent)
-                westAdj = unexploredTiles(-1, 0);
-
-            if(northAdj > greatest){
-                greatest = northAdj;
-                bestDirection = 0;
-            }
-
-            if(eastAdj > greatest){
-                greatest = eastAdj;
-                bestDirection = 90;
-            }
-
-            if(southAdj > greatest){
-                greatest = southAdj;
-                bestDirection = 180;
-            }
-
-            if(westAdj > greatest){
-                greatest = westAdj;
-                bestDirection = 270;
-            }
-
-            // 3. Every adjacent tile is a dead end: flood fill through the
-            //    known maze to the nearest cell that still has unexplored
-            //    neighbours, then let driveTo() take the whole route there.
-            //    driveTo() moves the robot and updates currentX/currentY
-            //    itself, so skip STATE_MOVE and go straight to gathering info.
-            if(greatest == 0){
-                int targetX, targetY;
-                if(floodFillTarget(targetX, targetY) &&
-                   driveTo(targetX, targetY)){
-                    gState = STATE_GATHER_INFO;
-                    return;
+            if(canStepDiagonal(x, y, d, allowUnvisited, targetX, targetY)){
+                int ns = STATE_INDEX(x + dirStep[d][0], y + dirStep[d][1], d);
+                if(!settled[ns] && bestCost + DIAGONAL_MOVE_COST < cost[ns]){
+                    cost[ns] = bestCost + DIAGONAL_MOVE_COST;
+                    prevState[ns] = best;
                 }
-            }
-
-            // Move one step toward the best adjacent tile found above.
-            if(greatest > 0){
-                heading = bestDirection;
-
-                if(heading == 0)
-                    currentY++;
-                else if(heading == 90)
-                    currentX++;
-                else if(heading == 180)
-                    currentY--;
-                else if(heading == 270)
-                    currentX--;
-
-            } else if(backup == true) {
-
-                // 4. Nothing left to explore anywhere reachable: backtrack
-                //    through the least-visited open neighbour.
-                int lowestVisits = 999999999;
-
-                int northVisits = visitedAt(currentX, currentY + 1);
-                int eastVisits  = visitedAt(currentX + 1, currentY);
-                int southVisits = visitedAt(currentX, currentY - 1);
-                int westVisits  = visitedAt(currentX - 1, currentY);
-
-                if(maze[currentX][currentY].north == absent &&
-                   northVisits < lowestVisits){
-
-                    lowestVisits = northVisits;
-                    heading = 0;
-                }
-
-                if(maze[currentX][currentY].east == absent &&
-                   eastVisits < lowestVisits){
-
-                    lowestVisits = eastVisits;
-                    heading = 90;
-                }
-
-                if(maze[currentX][currentY].south == absent &&
-                   southVisits < lowestVisits){
-
-                    lowestVisits = southVisits;
-                    heading = 180;
-                }
-
-                if(maze[currentX][currentY].west == absent &&
-                   westVisits < lowestVisits){
-
-                    lowestVisits = westVisits;
-                    heading = 270;
-                }
-
-                if(lowestVisits != 999999999){
-                    if(heading == 0)
-                        currentY++;
-                    else if(heading == 90)
-                        currentX++;
-                    else if(heading == 180)
-                        currentY--;
-                    else if(heading == 270)
-                        currentX--;
-                }
-            } else if(backup2 = true){
-                turnFor(720);
-                while(WAIT_TIME){
-                    
-                }
-                
             }
         }
+    }
+
+    if(goalState == -1)
+        return false; // no known route
+
+    // Walk back from the goal to get the path, then read off the cell moves.
+    int path[NUM_STATES];
+    int pathLen = 0;
+    for(int s = goalState; s != -1; s = prevState[s])
+        path[pathLen++] = s;
+
+    int moveDir[NUM_STATES];
+    int moveCount = 0;
+    for(int i = pathLen - 1; i > 0; i--){
+        int cur = path[i];
+        int nxt = path[i - 1];
+        if(cur / 8 != nxt / 8) // different cell -> this was a drive step
+            moveDir[moveCount++] = nxt % 8;
+    }
+
+    // Execute: merge consecutive steps in the same direction into one drive.
+    drive.setDriveVelocity(DRIVE_SPEED, percent);
+    int k = 0;
+    while(k < moveCount){
+        int d = moveDir[k];
+        int run = 0;
+        while(k < moveCount && moveDir[k] == d){
+            run++;
+            k++;
+        }
+
+        heading = d * 45;
+        turn(heading);
+        int cellDist = (d % 2 == 0) ? CELL_SIZE : DIAGONAL_CELL_SIZE;
+        drive.driveFor(forward, cellDist * run, mm);
+
+        currentX += dirStep[d][0] * run;
+        currentY += dirStep[d][1] * run;
     }
 
     updateMap();
-    gState = STATE_MOVE;
+    return true;
 }
 
-#endif
+#endif // DRIVETO_H
