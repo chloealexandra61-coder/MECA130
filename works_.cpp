@@ -107,7 +107,6 @@ void song(int number){
 }
 
 
-touchled tLed = touchled(PORT10);
 motor lMotor = motor(PORT6, false);
 motor rMotor = motor(PORT12, true);
 inertial iner = inertial();
