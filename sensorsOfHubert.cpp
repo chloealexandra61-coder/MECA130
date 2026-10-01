@@ -1,206 +1,63 @@
-#include "sensorsOfHubert.h"
+#ifndef SENSORS_OF_HUBERT_H
+#define SENSORS_OF_HUBERT_H
 #include "vex.h"
-vex::brain       Brain;
-vex::distance dSens = vex::distance(vex::PORT5);
-vex::optical opSens = vex::optical(vex::PORT1);
-vex::touchled tLed = vex::touchled(vex::PORT10);
+extern vex::brain       Brain;
+extern vex::distance dSens;
+extern vex::optical opSens;
+extern vex::touchled tLed;
+
+typedef enum{
+    tile_black,
+    tile_red, 
+    tile_pink,
+    tile_orange,
+    tile_white,
+    tile_yellow,
+    tile_green,
+    tile_blue,
+    tile_error,
+}tile;
 
 
-double rding; // the reading
-double hueShortForHue; // hue is short for hue
-double brtns; //brightness
-double dstRding[BUFFER_SIZE]; // distance reading array of specific size
-bool isWall = 0; // if wall then 1, if no wall 0.
-bool isWallLong = 0; //checks the tile ahead
-double oHueShortForHueAverage = 0;
-double oBrtnsAverage = 0;
-double hueShortForHueRding[BUFFER_SIZE];
-double brtnsRding[BUFFER_SIZE];
-double dAverage = 0;
-double dTotal = 0;
-double cDistance = 0;
-tile currentTile;
-double blackBrtns;
-double redCol;
-double orangeCol;
-double whiteCol;
-double greenCol;
-double blueCol;
-bool doColourCheck = true;
+void printBrightness();
+void printHue();
+void colourCheck();
+void wallCheckLong();
+void wallCheck();
+tile tileCheck();
+void colourSet();
 
-void colourSet(){
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on Black");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    blackBrtns = oBrtnsAverage;
-
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on Red");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    redCol = oHueShortForHueAverage;
-
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on Orange");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    orangeCol = oHueShortForHueAverage;
-
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on Blue");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    blueCol = oHueShortForHueAverage;
-
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on Green");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    greenCol = oHueShortForHueAverage;
-
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-    Brain.Screen.print("Place me on White");
-    wait(250, vex::msec);
-    while(!tLed.pressing()){
-        wait(50, vex::msec);
-    }
-    whiteCol = oHueShortForHueAverage;
-    Brain.Screen.clearScreen();
-    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
-}
-
-tile tileCheck(){
-    double oBrtnsTotal = 0;
-    oBrtnsAverage = 0;
-    double oHueShortForHueTotal = 0;
-    oHueShortForHueAverage = 0;
-    tile color = tile_black;
-    for(int i = 0; i < BUFFER_SIZE; i++){
-        hueShortForHueRding[i] = opSens.hue();
-        oHueShortForHueTotal += hueShortForHueRding[i];
-
-        brtnsRding[i] = opSens.brightness();
-        oBrtnsTotal += brtnsRding[i];
-
-    }
-    oBrtnsAverage = oBrtnsTotal / BUFFER_SIZE;
-    oHueShortForHueAverage =  oHueShortForHueTotal / BUFFER_SIZE;
-
-    if(doColourCheck){
-        if(oBrtnsAverage < blackBrtns+5){
-            color = tile_black;
-        } else {
-            if(redCol-5 < oHueShortForHueAverage < redCol+5){
-                color = tile_red;
-            } else {
-                if(orangeCol-5 < oHueShortForHueAverage < orangeCol+5){
-                   color = tile_orange;
-                } else {
-                    if(whiteCol-5 < oHueShortForHueAverage < whiteCol+5){
-                        color = tile_white;
-                    } else {
-                        if(blueCol-5 < oHueShortForHueAverage < blueCol+5){
-                            color = tile_blue;
-                        } else {
-                            if(greenCol-5 < oHueShortForHueAverage < greenCol+5){
-                                color = tile_green;
-                            } else { color = tile_red;}
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        if(oBrtnsAverage < 7){
-            color = tile_black;
-        } else {
-            if(oHueShortForHueAverage < UPPER_RED){
-                color = tile_red;
-            } else {
-                if(oHueShortForHueAverage < UPPER_ORANGE){
-                    color = tile_orange;
-                } else {
-                    if(oHueShortForHueAverage < UPPER_WHITE){
-                        color = tile_white;
-                    } else {
-                        if(oHueShortForHueAverage < UPPER_BLUE){
-                            color = tile_blue;
-                        } else {
-                            if(oHueShortForHueAverage < UPPER_GREEN){
-                                color = tile_green;
-                            } else { color = tile_red;}
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    return(color);
-}
-
-void colourCheck(){
-    if(!renderMap){
-    Brain.Screen.print("clr Check");
-       }
-    currentTile = tileCheck();
- }
-
-    
-void wallCheckLong(){
-    dTotal = 0;
-   for(int i = 0; i < BUFFER_SIZE; i++){
-            dstRding[i]  =  dSens.objectDistance(vex::mm);
-            dTotal += dstRding[i];
-        }
-        cDistance = dTotal / BUFFER_SIZE;
-
-        if(cDistance > WALL_CLEAR_LONG){
-            isWallLong = 0;
-        } else {
-            isWallLong = 1;
-        }
-}
+#define GROUP_NUMBER 35
+#define WALL_THRESHOLD 100
+#define BUFFER_SIZE 10 
+#define WALL_CLEAR_MM 400
+#define WALL_CLEAR_LONG 800
+#define S_RST_EGGS 1 //x
+#define S_RST_WHY 1 //y
+#define UPPER_RED 20
+#define UPPER_PINK 30       //these were find from experimenting
+#define UPPER_ORANGE 35
+#define UPPER_WHITE 38
+#define UPPER_YELLOW 43
+#define UPPER_BLUE 47
+#define UPPER_GREEN 60
 
 
+extern double rding; // the reading
+extern double hueShortForHue; // hue is short for hue
+extern double brtns; //brightness
+extern double dstRding[BUFFER_SIZE]; // distance reading array of specific size
+extern bool isWall; // if wall then 1, if no wall 0.
+extern bool isWallLong; //checks the tile ahead
+extern double oHueShortForHueAverage;
+extern double oBrtnsAverage;
+extern double hueShortForHueRding[BUFFER_SIZE];
+extern double brtnsRding[BUFFER_SIZE];
+extern double dAverage;
+extern double dTotal;
+extern double cDistance;
+extern tile currentTile;
+extern bool renderMap;
+extern int testColour;
 
-void wallCheck(){
-    dTotal = 0;
-   for(int i = 0; i < BUFFER_SIZE; i++){
-            dstRding[i]  =  dSens.objectDistance(vex::mm);
-            dTotal += dstRding[i];
-        }
-        cDistance = dTotal / BUFFER_SIZE;
-
-        if(cDistance > WALL_CLEAR_MM){
-            isWall = 0;
-        } else {
-            isWall = 1;
-        } 
-    
-}
-
-void printBrightness(){
-    Brain.Screen.print(", %.1f", oBrtnsAverage);
-}
-
-void printHue(){
-    Brain.Screen.print("%.1f", oHueShortForHueAverage);
-}
+#endif
