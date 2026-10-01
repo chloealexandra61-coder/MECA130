@@ -37,6 +37,75 @@ int checkpointX;
 int checkpointY;
 
 
+void song(int number){
+    // //0 - C
+    // // 1 - D
+    // // 2 - E
+    // // 3 - F
+    // // 4 - G
+    // // 5 - A
+    // // 6 - B
+
+    if(number == 1){
+        
+        Brain.playNote(4,1);
+        wait(250,msec);
+        Brain.playNote(4,2);
+        wait(250,msec);
+
+        Brain.playNote(4,4, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,2, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,6, 250);  //give
+                wait(250,msec);
+
+        Brain.playNote(4,6,250);
+                wait(300,msec); //you 
+
+        Brain.playNote(4,5, 250);
+                wait(450,msec); //up
+
+        Brain.playNote(4,1, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,2, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,4, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,2, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,5, 250);
+                wait(350,msec);
+
+        Brain.playNote(4,5, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,4, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,1, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,2, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,4, 250);
+                wait(250,msec);
+
+        Brain.playNote(4,2, 250);
+                wait(250,msec);
+
+
+
+    }
+}
+
 
 touchled tLed = touchled(PORT10);
 motor lMotor = motor(PORT6, false);
@@ -195,6 +264,38 @@ void updateMap(){
             6
         );
     }
+
+    if(maze[currentX][currentY].tileType == tile_yellow){
+        Brain.Screen.setPenColor(yellow);
+        Brain.Screen.drawRectangle(
+            px + 2,
+            100 - py + 2,
+            6,
+            6
+        );
+    }
+
+    if(maze[currentX][currentY].tileType == tile_orange){
+        Brain.Screen.setPenColor(orange);
+        Brain.Screen.drawRectangle(
+            px + 2,
+            100 - py + 2,
+            6,
+            6
+        );
+    }
+
+    if(maze[currentX][currentY].tileType == tile_white){
+        Brain.Screen.setPenColor(white);
+        Brain.Screen.drawRectangle(
+            px + 2,
+            100 - py + 2,
+            6,
+            6
+        );
+    }
+
+
 
 
 
@@ -372,6 +473,9 @@ void idle(){
     if(!renderMap){
     Brain.Screen.print("idle");
     }
+    if(currentX == 0 && currentY == 0 && person == REQUIRED_PEOPLE){
+        song(1);
+    }
     while(WAIT_TIME){
         if(tLed.pressing()){
             gState = STATE_GATHER_INFO;
@@ -424,39 +528,6 @@ void markDeadEnd(){
     }
 }
 
-void song(int number){
-    // //0 - C
-    // // 1 - D
-    // // 2 - E
-    // // 3 - F
-    // // 4 - G
-    // // 5 - A
-    // // 6 - B
-
-    // if(number = 1){
-        
-    //     playNote(4,1);
-    //     playNote(4,2);
-    //     playNote(4,4);
-    //     playNote(4,2);
-    //     playNote(4,6);
-    //     playNote(4,6);
-    //     playNote(4,5);
-    //     playNote(4,1);
-    //     playNote(4,2);
-    //     playNote(4,4);
-    //     playNote(4,2);
-    //     playNote(4,5);
-    //     playNote(4,5);
-    //     playNote(4,4);
-    //     playNote(4,1);
-    //     playNote(4,2);
-    //     playNote(4,4);
-    //     playNote(4,2);
-
-
-    // }
-}
 void writeToWall(int x, int y, dir direction, wall set){
     if(validCell(currentX + x, currentY + y)){
         if(direction == north){
@@ -487,6 +558,16 @@ void gatherInfo(){
 
     if(maze[currentX][currentY].tileType == tile_blue && maze[currentX][currentY].visited == 1){
     person++;
+        tLed.on(blue);
+        Brain.playSound(tada);
+        wait(1000, msec);
+        Brain.playSound(tada);
+        tLed.off();
+        wait(500, msec); // holy shit this one is a hazard
+        Brain.playSound(tada);
+        tLed.on(blue);
+        wait(1000, msec);
+        tLed.on(blue);
     }
     
 
@@ -494,8 +575,33 @@ void gatherInfo(){
         checkpoint = true;
         checkpointX = currentX; //yay i found a checkpoint
         checkpointY = currentY;
+        tLed.on(green);
+        Brain.playSound(tada);
+        wait(1000, msec);
+        Brain.playSound(tada);
+        tLed.off();
+        wait(500, msec); // holy shit this one is a hazard
+        Brain.playSound(tada);
+        tLed.on(green);
+        wait(1000, msec);
+        tLed.on(purple);
     }
 
+        if(maze[currentX][currentY].tileType == tile_orange){
+        supplies++;
+          
+        tLed.on(orange);
+        Brain.playSound(tada);
+        wait(1000, msec);
+        Brain.playSound(tada);
+        tLed.off();
+        wait(500, msec); // holy shit this one is a hazard
+        Brain.playSound(tada);
+        tLed.on(orange);
+        wait(1000, msec);
+        tLed.on(purple);
+
+    }
 
 
     if(maze[currentX][currentY].tileType == tile_red){
@@ -514,8 +620,85 @@ void gatherInfo(){
     } else {
     
 
-        updateMap();
+//east
+    if(maze[currentX][currentY].east == unk){
+        heading = 90;
+        turn(heading);
+        
+        wallCheck();
+        if(isWall == 0){
+            writeToWall(0,0, east, absent);
+            writeToWall(1, 0, west, absent);
+            wallCheckLong();
+            if(isWallLong == 0){
+                writeToWall(1,0,east,absent);
+                writeToWall(2,0,west,absent);
+                } else {
+                    writeToWall(1,0,east,present);
+                    writeToWall(2,0,west,present);
+                    }
 
+        } else {
+            writeToWall(0,0,east,present);
+            writeToWall(1,0,west,present);
+
+        }
+    }
+
+//south
+    if(maze[currentX][currentY].south == unk){
+        heading = 180;
+        turn(heading);
+
+        
+        wallCheck();
+        if(isWall == 0){
+            writeToWall(0,0,south,absent);
+            writeToWall(0, -1,north,absent);
+            wallCheckLong();
+            if(isWallLong == 0){
+                writeToWall(0, -1, south,absent);
+                writeToWall(0, -2, north, absent);
+            } else {
+                writeToWall(0,-1,south,present);
+                writeToWall(0, -2, north, present);
+            }
+        } else {
+            writeToWall(0,0,south,present);
+            writeToWall(0, -1, north, present);
+
+        }
+    }
+
+
+//west
+    if(maze[currentX][currentY].west == unk){
+        heading = 270;
+        turn(heading);
+
+        wallCheck();
+        if(isWall == 0){
+            writeToWall(0,0,west,absent);
+            writeToWall(-1,0,east,absent);
+            wallCheckLong();
+            if(isWallLong == 0){
+                writeToWall(-1,0,west,absent);
+                writeToWall(-2, 0, east,absent);
+
+            } else {
+                writeToWall(-1,0,west,present);
+                writeToWall(-2,0,east,present);
+            }   
+
+        } else {
+            writeToWall(0,0,west,present);
+            writeToWall(-1,0,east,present);
+
+            
+        }
+    }
+
+//north
     if(maze[currentX][currentY].north == unk){
         heading = 0;
         turn(heading);
@@ -542,86 +725,11 @@ void gatherInfo(){
 
     updateMap();
 
-    if(maze[currentX][currentY].east == unk){
-        heading = 90;
-        turn(heading);
-        
-        wallCheck();
-        if(isWall == 0){
-            writeToWall(0,0, east, absent);
-            writeToWall(1, 0, west, absent);
-            wallCheckLong();
-            if(isWallLong == 0){
-                writeToWall(1,0,east,absent);
-                writeToWall(2,0,west,absent);
-                } else {
-                    writeToWall(1,0,east,present);
-                    writeToWall(2,0,west,present);
-                    }
-
-        } else {
-            writeToWall(0,0,east,present);
-            writeToWall(1,0,west,present);
-
-        }
-    }
-
-    updateMap();
 
 
 
-    if(maze[currentX][currentY].south == unk){
-        heading = 180;
-        turn(heading);
-
-        
-        wallCheck();
-        if(isWall == 0){
-            writeToWall(0,0,south,absent);
-            writeToWall(0, -1,north,absent);
-            wallCheckLong();
-            if(isWallLong == 0){
-                writeToWall(0, -1, south,absent);
-                writeToWall(0, -2, north, absent);
-            } else {
-                writeToWall(0,-1,south,present);
-                writeToWall(0, -2, north, present);
-            }
-        } else {
-            writeToWall(0,0,south,present);
-            writeToWall(0, -1, north, present);
-
-        }
-    }
-
-    updateMap();
 
 
-    if(maze[currentX][currentY].west == unk){
-        heading = 270;
-        turn(heading);
-
-        wallCheck();
-        if(isWall == 0){
-            writeToWall(0,0,west,absent);
-            writeToWall(-1,0,east,absent);
-            wallCheckLong();
-            if(isWallLong == 0){
-                writeToWall(-1,0,west,absent);
-                writeToWall(-2, 0, east,absent);
-
-            } else {
-                writeToWall(-1,0,west,present);
-                writeToWall(-2,0,east,present);
-            }   
-
-        } else {
-            writeToWall(0,0,west,present);
-            writeToWall(-1,0,east,present);
-
-            
-        }
-    }
 
     }
     markDeadEnd();
@@ -752,10 +860,6 @@ switch((int)cTile){
 
     int main(){
     opSens.setLightPower(50, vex::percentUnits::pct);
-    if(songs){
-        song(1);
-        wait(1000,msec);
-    }
 
     while(WAIT_TIME){
         if(colourDebug){
