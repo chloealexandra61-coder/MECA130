@@ -4,6 +4,7 @@
 extern vex::brain       Brain;
 extern vex::distance dSens;
 extern vex::optical opSens;
+extern vex::touchled tLed;
 
 typedef enum{
     tile_black,
@@ -24,12 +25,15 @@ void colourCheck();
 void wallCheckLong();
 void wallCheck();
 tile tileCheck();
+void colourSet();
 
 #define GROUP_NUMBER 35
 #define WALL_THRESHOLD 100
 #define BUFFER_SIZE 10 
 #define WALL_CLEAR_MM 400
 #define WALL_CLEAR_LONG 800
+#define S_RST_EGGS 1 //x
+#define S_RST_WHY 1 //y
 #define UPPER_RED 20
 #define UPPER_PINK 30       //these were find from experimenting
 #define UPPER_ORANGE 35
