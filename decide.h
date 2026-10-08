@@ -1,59 +1,47 @@
 #ifndef DECIDE_H
 #define DECIDE_H
 
-// Flood fill (BFS) outward from the current cell through known, visited,
-// non-red, wall-free cells. Finds the nearest cell that unexploredTiles()
-// says has unexplored neighbours. Writes its coordinates to targetX/targetY
-// and returns true, or returns false if there is no such cell.
+// Finds the cheapest-to-reach known cell (by driveTo's cost, so diagonal
+// shortcuts count) that unexploredTiles() says has unexplored neighbours.
+// Writes its coordinates to targetX/targetY and returns true, or returns
+// false if there is no such cell.
 bool floodFillTarget(int &targetX, int &targetY){
-    bool seen[MAZE_WIDTH][MAZE_HEIGHT];
-    int  queueX[MAZE_WIDTH * MAZE_HEIGHT];
-    int  queueY[MAZE_WIDTH * MAZE_HEIGHT];
-    int  head = 0, tail = 0;
+    int cost[NUM_STATES];
+    int prevState[NUM_STATES];
+    int goalState;
+    planCosts(-1, -1, false, cost, prevState, goalState);
 
-    for(int x = 0; x < MAZE_WIDTH; x++){
-        for(int y = 0; y < MAZE_HEIGHT; y++){
-            seen[x][y] = false;
-        }
-    }
+    int bestCost = INF_COST;
+    bool found = false;
 
-    seen[currentX][currentY] = true;
-    queueX[tail] = currentX;
-    queueY[tail] = currentY;
-    tail++;
+    for(int s = 0; s < NUM_STATES; s++){
+        if(cost[s] >= bestCost)
+            continue;
 
-    while(head < tail){
-        int x = queueX[head];
-        int y = queueY[head];
-        head++;
+        int y = (s / 8) % MAZE_HEIGHT;
+        int x = s / (8 * MAZE_HEIGHT);
 
-        // Found a frontier cell (skip the cell we're standing on).
-        if(!(x == currentX && y == currentY) &&
-           unexploredTiles(x - currentX, y - currentY) > 0){
+        if(x == currentX && y == currentY)
+            continue;
+
+        if(unexploredTiles(x - currentX, y - currentY) > 0){
+            bestCost = cost[s];
             targetX = x;
             targetY = y;
-            return true;
-        }
-
-        for(int d = 0; d < 4; d++){
-            int nx = x + dirStep[d][0];
-            int ny = y + dirStep[d][1];
-
-            if(!validCell(nx, ny) || seen[nx][ny])
-                continue;
-
-            // Only travel through known cells (allowUnvisited = false).
-            if(!canStep(x, y, d, false, -1, -1))
-                continue;
-
-            seen[nx][ny] = true;
-            queueX[tail] = nx;
-            queueY[tail] = ny;
-            tail++;
+            found = true;
         }
     }
 
-    return false;
+    return found;
+}
+
+void finishRun(){
+    if(checkpoint){
+        driveTo(checkpointX, checkpointY);
+        wait(1000, msec);
+    }
+    driveTo(0, 0);
+    gState = STATE_IDLE;
 }
 
 // Choose the next cell using the information gathered so far.
@@ -88,10 +76,7 @@ void decide(){
         // Once all required people have been found and a checkpoint exists,
         // return to the checkpoint and then return to the start.
         if(person >= REQUIRED_PEOPLE && checkpoint){
-            driveTo(checkpointX, checkpointY);
-            wait(1000, msec);
-            driveTo(0,0);
-            gState = STATE_IDLE;
+            finishRun();
             return;
         }
 
@@ -176,77 +161,20 @@ void decide(){
                     gState = STATE_GATHER_INFO;
                     return;
                 }
+                finishRun();
+                return;
             }
 
-            // Move one step toward the best adjacent tile found above.
-            if(greatest > 0){
-                heading = bestDirection;
+            heading = bestDirection;
 
-                if(heading == 0)
-                    currentY++;
-                else if(heading == 90)
-                    currentX++;
-                else if(heading == 180)
-                    currentY--;
-                else if(heading == 270)
-                    currentX--;
-
-            } else if(backup == true) {
-
-                // 4. Nothing left to explore anywhere reachable: backtrack
-                //    through the least-visited open neighbour.
-                int lowestVisits = 999999999;
-
-                int northVisits = visitedAt(currentX, currentY + 1);
-                int eastVisits  = visitedAt(currentX + 1, currentY);
-                int southVisits = visitedAt(currentX, currentY - 1);
-                int westVisits  = visitedAt(currentX - 1, currentY);
-
-                if(maze[currentX][currentY].north == absent &&
-                   northVisits < lowestVisits){
-
-                    lowestVisits = northVisits;
-                    heading = 0;
-                }
-
-                if(maze[currentX][currentY].east == absent &&
-                   eastVisits < lowestVisits){
-
-                    lowestVisits = eastVisits;
-                    heading = 90;
-                }
-
-                if(maze[currentX][currentY].south == absent &&
-                   southVisits < lowestVisits){
-
-                    lowestVisits = southVisits;
-                    heading = 180;
-                }
-
-                if(maze[currentX][currentY].west == absent &&
-                   westVisits < lowestVisits){
-
-                    lowestVisits = westVisits;
-                    heading = 270;
-                }
-
-                if(lowestVisits != 999999999){
-                    if(heading == 0)
-                        currentY++;
-                    else if(heading == 90)
-                        currentX++;
-                    else if(heading == 180)
-                        currentY--;
-                    else if(heading == 270)
-                        currentX--;
-                }
-            } else if(backup2 = true){
-                turnFor(720);
-                while(WAIT_TIME){
-                    
-                }
-                
-            }
+            if(heading == 0)
+                currentY++;
+            else if(heading == 90)
+                currentX++;
+            else if(heading == 180)
+                currentY--;
+            else if(heading == 270)
+                currentX--;
         }
     }
 
