@@ -104,23 +104,18 @@ bool canStepDiagonal(int x, int y, int d, bool allowUnvisited, int targetX, int 
     if(!allowUnvisited && maze[nx][ny].visited == 0 &&
        !(nx == targetX && ny == targetY))
         return false;
+
+    int mids[2][2] = {{midAx, midAy}, {midBx, midBy}};
+    for(int i = 0; i < 2; i++){
+        if(maze[mids[i][0]][mids[i][1]].tileType == tile_red)
+            return false;
+        if(!allowUnvisited && maze[mids[i][0]][mids[i][1]].visited == 0)
+            return false;
+    }
     return true;
 }
 
-// allowUnvisited set to false means that it will never go to an unvisited
-// tile and essentially back track through known stuff.
-// allowUnvisited set to true will allow the bot to go to unvisited tiles that
-// may be faster.
-bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
-    if(!validCell(targetX, targetY))
-        return false;
-    if(maze[targetX][targetY].tileType == tile_red)
-        return false;
-    if(targetX == currentX && targetY == currentY)
-        return true;
-
-    int cost[NUM_STATES];
-    int prevState[NUM_STATES];
+void planCosts(int targetX, int targetY, bool allowUnvisited, int *cost, int *prevState, int &goalState){
     bool settled[NUM_STATES];
     for(int i = 0; i < NUM_STATES; i++){
         cost[i] = INF_COST;
@@ -128,15 +123,12 @@ bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
         settled[i] = false;
     }
 
-    // Start from the way the robot is physically facing right now, rounded to
-    // the nearest 45 degrees.
     int startDir = (((int)((heading + 22.5) / 45)) % 8 + 8) % 8;
     cost[STATE_INDEX(currentX, currentY, startDir)] = 0;
 
-    int goalState = -1;
+    goalState = -1;
 
     while(true){
-        // Pick the cheapest unsettled state.
         int best = -1;
         int bestCost = INF_COST;
         for(int s = 0; s < NUM_STATES; s++){
@@ -146,7 +138,7 @@ bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
             }
         }
         if(best == -1)
-            break; // nothing reachable is left
+            break;
 
         settled[best] = true;
 
@@ -159,8 +151,7 @@ bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
             break;
         }
 
-        // Turn 45 degrees either way (any bigger turn is just several of these).
-        for(int t = 1; t <= 7; t += 6){ // t = 1 or 7 (i.e. +1 or -1 mod 8)
+        for(int t = 1; t <= 7; t += 6){
             int nd = (d + t) % 8;
             int ns = STATE_INDEX(x, y, nd);
             if(!settled[ns] && bestCost + DIAGONAL_TURN_COST < cost[ns]){
@@ -169,7 +160,6 @@ bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
             }
         }
 
-        // Drive forward one cell: cardinal or diagonal depending on facing.
         if(d % 2 == 0){
             if(canStep(x, y, d, allowUnvisited, targetX, targetY)){
                 int ns = STATE_INDEX(x + dirStep[d][0], y + dirStep[d][1], d);
@@ -188,9 +178,27 @@ bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
             }
         }
     }
+}
+
+// allowUnvisited set to false means that it will never go to an unvisited
+// tile and essentially back track through known stuff.
+// allowUnvisited set to true will allow the bot to go to unvisited tiles that
+// may be faster.
+bool driveTo(int targetX, int targetY, bool allowUnvisited = false){
+    if(!validCell(targetX, targetY))
+        return false;
+    if(maze[targetX][targetY].tileType == tile_red)
+        return false;
+    if(targetX == currentX && targetY == currentY)
+        return true;
+
+    int cost[NUM_STATES];
+    int prevState[NUM_STATES];
+    int goalState;
+    planCosts(targetX, targetY, allowUnvisited, cost, prevState, goalState);
 
     if(goalState == -1)
-        return false; // no known route
+        return false;
 
     // Walk back from the goal to get the path, then read off the cell moves.
     int path[NUM_STATES];
