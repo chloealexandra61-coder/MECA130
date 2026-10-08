@@ -1,5 +1,6 @@
 #include "vex.h"
 #include "sensorsOfHubert.h"
+
 #define GROUP_NUMBER 35
 #define WALL_THRESHOLD 100
 using namespace vex;
@@ -19,7 +20,7 @@ using namespace vex;
 #define DRIVE_SPEED 90
 #define DRIVE_SPEED_SLOW 40
 #define GOOD_WALL_DIST 115
-#define REQUIRED_PEOPLE 3
+#define REQUIRED_PEOPLE 2
 #define LIGHT_PERCENT
 bool renderMap = true;
 bool songs = true;
@@ -27,8 +28,6 @@ bool colourDebug = true;
 bool mapOutline = false;
 bool printRobotPos = false;
 bool wallSquare = true;
-bool backup = false;
-bool backup2 = true;
 int count = 0;
 int person = 0;
 int supplies = 0;
@@ -105,7 +104,7 @@ void song(int number){
 
     }
 }
-
+#include "sound_1.h"
 
 motor lMotor = motor(PORT6, false);
 motor rMotor = motor(PORT12, true);
@@ -354,7 +353,7 @@ void turn(int angle){
     drive.turnToHeading(angle, degrees);
     turnCount++;
     printIner();
-    if(wallSquare){
+    if(wallSquare && angle % 90 == 0){
     dTotal = 0;
     for(int i = 0; i < BUFFER_SIZE; i++){
             dstRding[i]  =  dSens.objectDistance(mm);
@@ -432,7 +431,7 @@ bool alignCheck(){
     
 
     
-        if((align[0] - align[1]) > 10){
+        if(fabs(align[0] - align[1]) > 10){
             alignment = false;
         }
         turn(0);
@@ -476,12 +475,13 @@ void idle(){
     if(currentX == 0 && currentY == 0 && person == REQUIRED_PEOPLE){
         song(1);
     }
-    while(WAIT_TIME){
-        if(tLed.pressing()){
-            gState = STATE_GATHER_INFO;
-            break;
-        }
+    while(!tLed.pressing()){
+        wait(WAIT_TIME, msec);
     }
+    while(tLed.pressing()){
+        wait(WAIT_TIME, msec);
+    }
+    gState = STATE_GATHER_INFO;
 }
 
 
@@ -553,8 +553,10 @@ void gatherInfo(){
     }
     
     maze[currentX][currentY].visited++;
-    colourCheck();
-    maze[currentX][currentY].tileType = currentTile;
+    if(maze[currentX][currentY].visited == 1){
+        colourCheck();
+        maze[currentX][currentY].tileType = currentTile;
+    }
 
     if(maze[currentX][currentY].tileType == tile_blue && maze[currentX][currentY].visited == 1){
     person++;
@@ -571,7 +573,7 @@ void gatherInfo(){
     }
     
 
-    if(maze[currentX][currentY].tileType == tile_green){
+    if(maze[currentX][currentY].tileType == tile_green && maze[currentX][currentY].visited == 1){
         checkpoint = true;
         checkpointX = currentX; //yay i found a checkpoint
         checkpointY = currentY;
@@ -587,7 +589,7 @@ void gatherInfo(){
         tLed.on(purple);
     }
 
-        if(maze[currentX][currentY].tileType == tile_orange){
+        if(maze[currentX][currentY].tileType == tile_orange && maze[currentX][currentY].visited == 1){
         supplies++;
           
         tLed.on(orange);
@@ -771,7 +773,7 @@ void move(){
     Brain.Screen.print("moving");
     }
     turn(heading);
-    drive.driveFor(forward, 400, mm);
+    drive.driveFor(forward, CELL_SIZE, mm);
     dTotal = 0;
    
     gState = STATE_GATHER_INFO;
@@ -781,42 +783,15 @@ void move(){
     
 void error(){
     tLed.on(red);
-    while(WAIT_TIME){
-        if(tLed.pressing()){
-            gState = STATE_IDLE;
-            break;
-        }
+    while(!tLed.pressing()){
+        wait(WAIT_TIME, msec);
     }
+    while(tLed.pressing()){
+        wait(WAIT_TIME, msec);
+    }
+    gState = STATE_IDLE;
 }
 
-// Run one state-machine step.
-void stateMachine(){
-    switch (gState){
-            case STATE_COLOUR_SET:
-            colourSet();
-            break;
-            case STATE_STARTUP:
-            startup();
-            break;
-            case STATE_IDLE:
-            idle();
-            break;
-            case STATE_GATHER_INFO:
-            gatherInfo();
-            break;
-            case STATE_DECIDE:
-            decide();
-            break;
-            case STATE_MOVE:
-            move();
-            break;
-            case STATE_ERROR:
-            error();
-            break;
-        }
-
-
-    }
 
 void tileToPrint(tile cTile){
 switch((int)cTile){
@@ -861,7 +836,57 @@ switch((int)cTile){
 }
 
 
+// Run one state-machine step.
+void stateMachine(){
+    switch (gState){
+            case STATE_COLOUR_SET:
+                colourSet();
+                while(colourDebug){
+                    tile temp = tileCheck();
+                    tileToPrint(temp);
+                    Brain.Screen.newLine();
+                    printBrightness();
+                    Brain.Screen.newLine();
+                    printHue();
+                    wait(500, msec);
+                    Brain.Screen.clearScreen();
+                    Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);   
+                    }
+                gState = STATE_STARTUP;
+                break;
+
+            case STATE_STARTUP:
+                startup();
+                break;
+
+            case STATE_IDLE:
+                idle();
+                break;
+
+            case STATE_GATHER_INFO:
+                gatherInfo();
+                break;
+
+            case STATE_DECIDE:
+                decide();
+                break;
+
+            case STATE_MOVE:
+                move();
+                break;
+
+            case STATE_ERROR:
+                error();
+                break;
+        }
+
+
+    }
+
+
 int main(){
+    sound_1();
+    opSens.setLightPower(50, vex::percentUnits::pct);
     while(colourDebug){
                 tile temp = tileCheck();
                 tileToPrint(temp);
@@ -875,17 +900,6 @@ int main(){
         }
         
     while(1){
-        opSens.setLightPower(50, vex::percentUnits::pct);
-        if(colourDebug){
-            Brain.Screen.print("1");
-            wait(600,msec);
-        }
-        if(!colourDebug){
-            Brain.Screen.print("0");
-            wait(600,msec);
-        }
-
-        
         if(!renderMap){
         Brain.Screen.clearScreen();
         Brain.Screen.setCursor(S_RST_EGGS, S_RST_WHY);
