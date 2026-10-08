@@ -117,19 +117,19 @@ tile tileCheck(){
         if(oBrtnsAverage < blackBrtns+3){
             color = tile_black;
         } else {
-            if(redCol-offput < oHueShortForHueAverage < redCol+offput){
+            if(redCol-offput < oHueShortForHueAverage && oHueShortForHueAverage < redCol+offput){
                 color = tile_red;
             } else {
-                if(orangeCol-offput < oHueShortForHueAverage < orangeCol+offput){
+                if(orangeCol-offput < oHueShortForHueAverage && oHueShortForHueAverage < orangeCol+offput){
                    color = tile_orange;
                 } else {
-                    if(whiteCol-offput < oHueShortForHueAverage < whiteCol+offput){
+                    if(whiteCol-offput < oHueShortForHueAverage && oHueShortForHueAverage < whiteCol+offput){
                         color = tile_white;
                     } else {
-                        if(blueCol-offput < oHueShortForHueAverage < blueCol+offput){
+                        if(blueCol-offput < oHueShortForHueAverage && oHueShortForHueAverage < blueCol+offput){
                             color = tile_blue;
                         } else {
-                            if(greenCol-offput < oHueShortForHueAverage < greenCol+offput){
+                            if(greenCol-offput < oHueShortForHueAverage && oHueShortForHueAverage < greenCol+offput){
                                 color = tile_green;
                             } //else { color = tile_red;}
                         }
